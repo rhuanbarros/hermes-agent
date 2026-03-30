@@ -270,8 +270,8 @@ def _validate_audio_file(file_path: str) -> Optional[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _transcribe_local(file_path: str, model_name: str) -> Dict[str, Any]:
-    """Transcribe using faster-whisper (local, free)."""
+def _transcribe_local(file_path: str, model_name: str, device: str = "auto", compute_type: str = "auto") -> Dict[str, Any]:
+    """Local faster-whisper transcription (in-process)."""
     global _local_model, _local_model_name
 
     if not _HAS_FASTER_WHISPER:
@@ -282,7 +282,7 @@ def _transcribe_local(file_path: str, model_name: str) -> Dict[str, Any]:
         # Lazy-load the model (downloads on first use, ~150 MB for 'base')
         if _local_model is None or _local_model_name != model_name:
             logger.info("Loading faster-whisper model '%s' (first load downloads the model)...", model_name)
-            _local_model = WhisperModel(model_name, device="auto", compute_type="auto")
+            _local_model = WhisperModel(model_name, device=device, compute_type=compute_type)
             _local_model_name = model_name
 
         segments, info = _local_model.transcribe(file_path, beam_size=5)
@@ -525,7 +525,9 @@ def transcribe_audio(file_path: str, model: Optional[str] = None) -> Dict[str, A
     if provider == "local":
         local_cfg = stt_config.get("local", {})
         model_name = model or local_cfg.get("model", DEFAULT_LOCAL_MODEL)
-        return _transcribe_local(file_path, model_name)
+        device = local_cfg.get("device", "auto")
+        compute_type = local_cfg.get("compute_type", "auto")
+        return _transcribe_local(file_path, model_name, device=device, compute_type=compute_type)
 
     if provider == "local_command":
         local_cfg = stt_config.get("local", {})
